@@ -3,6 +3,7 @@
 	"description": "Allows a server to listen on the specified port when behind a router.",
 	"copyright": "Copyright © 2016, Etienne",
 	"authors": ["Etienne"],
+	"license": "MIT",
 	"dependencies": {
 		"vibe-d": { "version": "~master" },
 		"memutils": { "version": "~>0.4.5" },
