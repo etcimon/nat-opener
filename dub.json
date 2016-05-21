@@ -5,21 +5,33 @@
 	"authors": ["Etienne"],
 	"license": "MIT",
 	"dependencies": {
-		"vibe-d": { "version": "~master" },
+		"vibe-d": { "version": "1.0.0" },
 		"memutils": { "version": "~>0.4.5" },
-		"windows-headers": { "version": "1.0.1" },
-		"kxml": { "version": "1.0.0" }
+		"kxml": { "version": "~>1.0.0" }
 	},
-	"targetType": "staticLibrary",
+	"targetType": "executable",
 	"configurations": [
 		{
-			"name": "client_x64"
+			"name": "win64",
+			"platforms": ["windows"],
+			"dependencies": {
+				"windows-headers": { "version": "1.0.1" }
+			}
 		},
 		{
-			"name": "client_32mscoff",
+			"name": "posix",
+			"platforms": ["osx", "linux"]
+		},
+		{
+			"name": "32mscoff",
+			"dependencies": {
+				"windows-headers": { "version": "1.0.1"}
+			},
 			"dflags-windows-x86": ["-m32mscoff"],
+			
 			"subConfigurations": { 
-						"memutils": "32mscoff"
+				"memutils": "32mscoff",
+				"vibe-d": "libasync_botan_win32"
 			}
 		}
 	],

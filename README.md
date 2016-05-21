@@ -5,7 +5,7 @@ Allows anyone to serve a tcp/udp server on specified port behind a router that s
 
 ## Usage
 
-You will need to clone https://github.com/etcimon/kxml to use this. Afterwards, using dub, run `dub add-local kxml` on your local copy.
+This was tested on my own fork of vibe.d/libasync, but it should work with any other version
 
 - include nat-opener in your dub project
 - discover the routers with `discover()` (this will be done every 10 seconds in case you change wifi 

@@ -183,7 +183,7 @@ shared static this() {
 	setTimer(10.seconds, { discover(); }, true);
 }
 
-unittest {
+void main() {
 	setLogLevel(LogLevel.trace);
 	static if (LOG) logInfo("Found devices: %s", getDeviceListing().to!string);
 
