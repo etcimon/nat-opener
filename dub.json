@@ -1,0 +1,27 @@
+{
+	"name": "nat-opener",
+	"description": "Allows a server to listen on the specified port when behind a router.",
+	"copyright": "Copyright © 2016, Etienne",
+	"authors": ["Etienne"],
+	"dependencies": {
+		"vibe-d": { "version": "~master" },
+		"memutils": { "version": "~>0.4.5" },
+		"windows-headers": { "version": "1.0.1" },
+		"kxml": { "version": "1.0.0" }
+	},
+	"targetType": "staticLibrary",
+	"configurations": [
+		{
+			"name": "client_x64"
+		},
+		{
+			"name": "client_32mscoff",
+			"dflags-windows-x86": ["-m32mscoff"],
+			"subConfigurations": { 
+						"memutils": "32mscoff"
+			}
+		}
+	],
+	"versions": ["VibeCustomMain", "GCCheck"],
+	"libs": ["iphlpapi"]
+}
