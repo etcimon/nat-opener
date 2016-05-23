@@ -95,11 +95,11 @@ uint NLMSG_ALIGN(uint len) {
 	return  ( ((len)+NLMSG_ALIGNTO-1) & ~(NLMSG_ALIGNTO-1) );
 }
 enum NLMSG_HDRLEN	= (cast(int) NLMSG_ALIGN(nlmsghdr.sizeof));
-uint NLMSG_LENGTH()(auto len) {
+uint NLMSG_LENGTH(uint len) {
 	return ((len) + NLMSG_HDRLEN);
 }
 
-uint NLMSG_SPACE(auto len) {
+uint NLMSG_SPACE(uint len) {
 	return NLMSG_ALIGN(NLMSG_LENGTH(len));
 }
 void* NLMSG_DATA(nlmsghdr* nlh) {
@@ -183,7 +183,7 @@ uint __ALIGN_KERNEL(uint x, uint a) {
 	return __ALIGN_KERNEL_MASK(x, a - 1);
 }
 
-uint __ALIGN_KERNEL_MASK(auto x, auto mask) {
+uint __ALIGN_KERNEL_MASK(uint x, uint mask) {
 	return (((x) + (mask)) & ~(mask));
 }
 

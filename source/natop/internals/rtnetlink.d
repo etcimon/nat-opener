@@ -125,7 +125,7 @@ enum RTA_ALIGNTO	= 4u;
 uint RTA_ALIGN(uint len) {
 	return ( (len+RTA_ALIGNTO-1) & ~(RTA_ALIGNTO-1) );
 }
-bool RTA_OK(rta, uint len) {
+bool RTA_OK(rtattr* rta, uint len) {
 	return (len >= cast(uint)rtattr.sizeof && 
 		rta.rta_len >= rtattr.sizeof && 
 		rta.rta_len <= len);
@@ -267,8 +267,8 @@ enum : rt_class_t {
 enum RT_TABLE_MAX = 0xFFFFFFFF;
 
 /* Routing message attributes */
-
-enum rtattr_type_t {
+alias rtattr_type_t = int;
+enum : rtattr_type_t {
 	RTA_UNSPEC,
 	RTA_DST,
 	RTA_SRC,
@@ -301,7 +301,7 @@ enum RTA_MAX = (__RTA_MAX - 1);
 rtattr* RTM_RTA(rtmsg* r) {
 	return (cast(rtattr*)((cast(char*)r) + NLMSG_ALIGN(rtmsg.sizeof)));
 }  
-uint RTM_PAYLOAD(uint n) {
+uint RTM_PAYLOAD(nlmsghdr* n) {
 	return NLMSG_PAYLOAD(n, rtmsg.sizeof);
 }
 /* RTM_MULTIPATH --- array of struct rtnexthop.
@@ -356,7 +356,7 @@ rtattr* RTNH_DATA(rtnexthop* rtnh) {
 /* RTA_VIA */
 struct rtvia {
 	__kernel_sa_family_t	rtvia_family;
-	ubyte			rtvia_addr[0];
+	ubyte[0]		rtvia_addr;
 }
 
 /* RTM_CACHEINFO */
@@ -412,20 +412,20 @@ struct rta_session {
 	ubyte	pad1;
 	ushort	pad2;
 	
-	union {
-		struct ports {
+	union U {
+		struct Ports {
 			ushort	sport;
 			ushort	dport;
-		} ports ports;
+		} Ports ports;
 		
-		struct icmpt {
+		struct Icmpt {
 			ubyte	type;
 			ubyte	code;
 			ushort	ident;
-		} icmpt icmpt;
+		} Icmpt icmpt;
 		
 		uint		spi;
-	} u;
+	} U u;
 }
 
 struct rta_mfc_stats {
@@ -524,7 +524,7 @@ rtattr* TCA_RTA(tcmsg* r) {
 	return (cast(rtattr*)((cast(char*)r) + NLMSG_ALIGN(tcmsg.sizeof)));
 }
 
-uint TCA_PAYLOAD(uint n) {
+uint TCA_PAYLOAD(nlmsghdr* n) {
 	return NLMSG_PAYLOAD(n, tcmsg.sizeof);
 }
 
@@ -580,9 +580,9 @@ enum {
 }
 enum RTMGRP_IPV6_PREFIX	= 0x20000;
 
-
+alias rtnetlink_groups = int;
 /* RTnetlink multicast groups */
-enum rtnetlink_groups {
+enum : rtnetlink_groups {
 	RTNLGRP_NONE,
 	RTNLGRP_LINK,
 	RTNLGRP_NOTIFY,
@@ -627,7 +627,7 @@ struct tcamsg {
 rtattr* TA_RTA(tcamsg* r) {
 	return (cast(rtattr*)((cast(char*)r) + NLMSG_ALIGN(tcamsg.sizeof)));
 }
-uint TA_PAYLOAD(uint n) {
+uint TA_PAYLOAD(nlmsghdr* n) {
 	return NLMSG_PAYLOAD(n,tcamsg.sizeof);
 }
 enum TCA_ACT_TAB = 1; /* attr type must be >=1 */	

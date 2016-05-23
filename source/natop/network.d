@@ -2,6 +2,7 @@
 
 import core.exception : onOutOfMemoryError;
 import vibe.core.net;
+import vibe.core.log;
 
 import std.exception;
 import std.string : fromStringz;
@@ -70,26 +71,30 @@ IPRoute[] getDeviceListing() {
 version(linux) {
 	import natop.internals.netlink;
 	import natop.internals.rtnetlink;
+	import std.string;
 	import core.stdc.stdlib;
+	import core.stdc.string;
 	import core.sys.linux.sys.socket;
 	import core.sys.posix.sys.socket;
-
+	import core.sys.posix.net.if_;
+	import core.sys.posix.unistd;
 	int readNetLink(size_t BUFSIZE)(int nl_sock, ref ubyte[BUFSIZE] buf)
 	{
 		nlmsghdr* nl_hdr;		
-		int msg_len;		
+		int msg_len;
+		ubyte* pbuf = buf.ptr;	
 		do {
-			int read_len = recv(nl_sock, buf.ptr, BUFSIZE - msg_len, 0);
+			int read_len = cast(int)recv(nl_sock, pbuf, BUFSIZE - msg_len, 0);
 			if (read_len < 0) return -1;
 
-			nl_hdr = cast(nlmsghdr*)buf.ptr;
+			nl_hdr = cast(nlmsghdr*)pbuf;
 			
 			if ((NLMSG_OK(nl_hdr, cast(uint) read_len) == 0) || (nl_hdr.nlmsg_type == NLMSG_ERROR))
 				return -1;
 			
 			if (nl_hdr.nlmsg_type == NLMSG_DONE) break;
 			
-			buf = buf[read_len .. $];
+			pbuf += read_len;
 			msg_len += read_len;
 			
 			if ((nl_hdr.nlmsg_flags & NLM_F_MULTI) == 0) break;
@@ -106,25 +111,33 @@ version(linux) {
 		if ((rt_msg.rtm_family != AF_INET) || (rt_msg.rtm_table != RT_TABLE_MAIN))
 			return false;
 		
-		int rt_len = RTM_PAYLOAD(nl_hdr);
+		uint rt_len = RTM_PAYLOAD(nl_hdr);
 		for (rtattr* rt_attr = cast(rtattr*)RTM_RTA(rt_msg);
 			RTA_OK(rt_attr,rt_len); rt_attr = RTA_NEXT(rt_attr,rt_len))
 		{
 			switch(rt_attr.rta_type)
 			{
 				case RTA_OIF:
-					if_indextoname(*cast(int*)RTA_DATA(rt_attr), rt_info.name);
+					char[64] name;
+					if_indextoname(cast(uint)*cast(int*)RTA_DATA(rt_attr), name.ptr);
+					rt_info.name = name.ptr.fromStringz.idup;
+					logInfo("Got name: %s", rt_info.name);
 					break;
 				case RTA_GATEWAY:
 					rt_info.gateway.family = AF_INET;
-					rt_info.gateway.sockAddrInet4.sin_addr.s_addr = (ntohl(*cast(uint*)RTA_DATA(rt_attr)));
+					rt_info.gateway.sockAddrInet4.sin_addr.s_addr = ((*cast(uint*)RTA_DATA(rt_attr)));
+					logInfo("Got gateway: %s", rt_info.gateway.toAddressString());
 					break;
 				case RTA_DST:
 					rt_info.destination.family = AF_INET;
-					rt_info.destination.sockAddrInet4.sin_addr.s_addr = (ntohl(*cast(uint*)RTA_DATA(rt_attr)));
+					rt_info.destination.sockAddrInet4.sin_addr.s_addr = ((*cast(uint*)RTA_DATA(rt_attr)));
+					logInfo("Got destination: %s", rt_info.destination.toAddressString());
+					break;
+				default:
 					break;
 			}
 		}
+		if (rt_info.gateway.family != AF_INET || rt_info.destination.family != AF_INET) return false;
 		return true;
 	}
 
@@ -132,7 +145,7 @@ version(linux) {
 		
 		Appender!(IPRoute[]) ret;
 		ret.reserve(4);
-
+		enum PF_ROUTE = 16;
 		int sock = socket(PF_ROUTE, SOCK_DGRAM, NETLINK_ROUTE);
 		errnoEnforce(sock >= 0);
 
@@ -153,13 +166,13 @@ version(linux) {
 		
 		int len = readNetLink(sock, msg);
 		errnoEnforce(len >= 0);
-		
-		while (NLMSG_OK(nl_msg, cast(uint)len))
+		uint ulen = cast(uint) len;
+		while (NLMSG_OK(nl_msg, ulen))
 		{
 			IPRoute r;
 			if (parseRoute(nl_msg, r))
 				ret.put(r);
-			nl_msg = NLMSG_NEXT(nl_msg, cast(uint)len);
+			nl_msg = NLMSG_NEXT(nl_msg, ulen);
 		}
 		return ret.data;
 	}

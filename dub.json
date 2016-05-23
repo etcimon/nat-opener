@@ -36,5 +36,5 @@
 		}
 	],
 	"versions": ["VibeCustomMain", "GCCheck"],
-	"libs": ["iphlpapi"]
+	"libs-windows": ["iphlpapi"]
 }
