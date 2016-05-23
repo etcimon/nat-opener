@@ -91,8 +91,10 @@ void close(ushort port, bool is_tcp) {
 void discover() {
 	Router[string] new_routers;
 	Appender!(Task[]) tasks;
+	IPRoute[] devices = getDeviceListing();
+	logInfo("Discovering %d devices", getDeviceListing().length);
 	foreach (iproute; getDeviceListing()) {
-
+		logInfo("Discovering %s", iproute.gateway.toAddressString());
 		// interrupt the other when one completes a successful port redirect
 		auto mtx = new InterruptibleTaskMutex();
 		Task upnp_task;
@@ -185,7 +187,7 @@ shared static this() {
 
 void main() {
 	setLogLevel(LogLevel.trace);
-	static if (LOG) logInfo("Found devices: %s", getDeviceListing().to!string);
+	// static if (LOG) logInfo("Found devices: %s", getDeviceListing().to!string);
 
 	open(8081, true);
 	HTTPServerSettings settings = new HTTPServerSettings();
