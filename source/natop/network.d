@@ -31,6 +31,17 @@ struct IPRoute {
 	}
 }
 
+bool validate(IPRoute rt_info) {
+	if (rt_info.gateway.family == AF_UNSPEC || rt_info.destination.family == AF_UNSPEC)
+		return false;
+	auto dest = rt_info.destination.toAddressString();
+	auto gateway = rt_info.gateway.toAddressString();
+	foreach (ip; ["127.0.0.1"])
+		if (dest == ip || gateway == ip)
+			return false;
+	return true;
+}
+
 version(Windows)
 IPRoute[] getDeviceListing() {
 
@@ -55,14 +66,13 @@ IPRoute[] getDeviceListing() {
 	for (PIP_ADAPTER_INFO adapter = adapter_info; adapter !is null; adapter = adapter.Next)
 	{
 		auto gateway = cast(string)adapter.GatewayList.IpAddress.String.ptr.fromStringz();
-		if (gateway == "0.0.0.0") continue;
 		IPRoute r;
 		r.destination = resolveHost(cast(string)adapter.IpAddressList.IpAddress.String.ptr.fromStringz(), AF_INET, false);
 		r.gateway = resolveHost(gateway, AF_INET, false);
 		r.netmask = resolveHost(cast(string)adapter.IpAddressList.IpMask.String.ptr.fromStringz(), AF_INET, false);
 		r.name = adapter.AdapterName.ptr.fromStringz().idup;
-
-		ret ~= r;
+		if (validate(r))
+			ret ~= r;
 	}
 
 	return ret.data;
@@ -129,15 +139,18 @@ version(linux) {
 					rt_info.gateway.sockAddrInet4.sin_addr.s_addr = ((*cast(uint*)RTA_DATA(rt_attr)));
 					logInfo("Got gateway: %s", rt_info.gateway.toAddressString());
 					break;
-				/*case RTA_DST:
+				/* Mistakenly presumed to be the ethernet device address? Turned out to be a netmask on fedora I think.
+				 * Needs more testing.
+				case RTA_DST:
 					rt_info.destination.family = AF_INET;
 					rt_info.destination.sockAddrInet4.sin_addr.s_addr = ((*cast(uint*)RTA_DATA(rt_attr)));
 					logInfo("Got destination: %s", rt_info.destination.toAddressString());
 					break;
-				*/case RTA_PREFSRC:
+				*/
+				case RTA_PREFSRC:
 					rt_info.destination.family = AF_INET;
-                                        rt_info.destination.sockAddrInet4.sin_addr.s_addr = ((*cast(uint*)RTA_DATA(rt_attr)));
-                                        logInfo("Got prefsrc: %s", rt_info.destination.toAddressString());
+                    rt_info.destination.sockAddrInet4.sin_addr.s_addr = ((*cast(uint*)RTA_DATA(rt_attr)));
+                    logInfo("Got prefsrc: %s", rt_info.destination.toAddressString());
 					break;
 				default:
 					logInfo("Got other type: %d", rt_attr.rta_type);
@@ -191,7 +204,8 @@ version(linux) {
 				logInfo("Appending %s", name);
 				logInfo("Gateway: %s", route.gateway.toAddressString());
 				logInfo("Destination: %s", route.destination.toAddressString());
-				ret ~= route;
+				if (validate(route))
+					ret ~= route;
 			}
 		logInfo("Returning %d items", ret.data.length);
 		return ret.data;
@@ -199,16 +213,94 @@ version(linux) {
 
 }
 
-version(OSX)
-	IPRoute[] getDeviceListing() {
-	
-	Appender!(IPRoute[]) ret;
-	ret.reserve(4);
-	
-	return ret.data;
-	
-}
+version(OSX) {
+	import core.stdc.stdlib;
+	import core.stdc.string;
+	import natop.internals.route;
+	import core.sys.posix.net.if_;
+	import memutils.vector;
 
+	bool parseRoute(rt_msghdr* rtm, ref IPRoute rt_info)
+	{
+		sockaddr*[RTAX_MAX] rti_info;
+		sockaddr* sa = cast(sockaddr*)(rtm + 1);
+		for (int i = 0; i < RTAX_MAX; ++i)
+		{
+			if ((rtm.rtm_addrs & (1 << i)) == 0)
+			{
+				rti_info[i] = null;
+				continue;
+			}
+			rti_info[i] = sa;
+			size_t sa_len = cast(size_t) (sa.sa_len > 0 ? 1 + ((sa.sa_len - 1) | (long.sizeof - 1)) : long.sizeof);
+			sa = cast(sockaddr*) ((cast(char*)sa) + sa_len);
+		}
+		
+		sa = rti_info[RTAX_GATEWAY];
+		if (!sa || !rti_info[RTAX_DST] || !rti_info[RTAX_NETMASK] || (sa.sa_family != AF_INET && sa.sa_family != AF_INET6))
+			return false;
+		NetworkAddress na;
+		
+		foreach (i; 0 .. 7) {
+			na = NetworkAddress.init;
+			if (!rti_info[i]) continue;
+			memcpy(na.sockAddr, rti_info[i], sockaddr.sizeof);
+			if (na.family == AF_INET || na.family == AF_INET6) {
+				logInfo("Got %d", na.family);
+				logInfo("%d: %s", i, na.toString());
+			}
+			else
+				logInfo("Unspec family: %d", na.family);
+		}
+		memcpy(rt_info.gateway.sockAddr, rti_info[RTAX_GATEWAY], sockaddr.sizeof);
+		memcpy(rt_info.netmask.sockAddr, rti_info[RTAX_NETMASK], sockaddr.sizeof);
+		memcpy(rt_info.destination.sockAddr, rti_info[RTAX_DST], sockaddr.sizeof);
+		
+		if (!validate(rt_info))
+			return false;
+
+		char[64] name;
+		if_indextoname(cast(uint)rtm.rtm_index, name.ptr);
+		rt_info.name = name.ptr.fromStringz.idup;
+		return true;
+	}
+
+	IPRoute[] getDeviceListing() {
+		
+		Appender!(IPRoute[]) ret;
+		ret.reserve(4);
+		int[6] mib = [CTL_NET, PF_ROUTE, 0, AF_UNSPEC, NET_RT_DUMP, 0];
+		
+		size_t needed;
+		errnoEnforce(sysctl(mib.ptr, 6, null, &needed, null, 0) >= 0);
+		
+		if (needed == 0)
+			return IPRoute[].init;
+		
+		auto ub = Vector!ubyte(needed);
+		
+		errnoEnforce(sysctl(mib.ptr, 6, ub.ptr, &needed, null, 0) >= 0);
+		
+		rt_msghdr* rtm;
+		ubyte* next = ub.ptr;
+		ubyte* end = ub.ptr + needed;
+		while (next < end)
+		{
+			rtm = cast(rt_msghdr*) next;
+			
+			if (rtm.rtm_version != RTM_VERSION)
+				continue;
+			
+			IPRoute r;
+			if (parseRoute(rtm, r))
+				ret ~= r;
+			
+			next += rtm.rtm_msglen;
+		}
+		return ret.data;
+		
+	}
+}
 
 interface Router {
 	@property string id();

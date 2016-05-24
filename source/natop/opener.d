@@ -92,9 +92,12 @@ void discover() {
 	Router[string] new_routers;
 	Appender!(Task[]) tasks;
 	IPRoute[] devices = getDeviceListing();
-	logInfo("Discovering %d devices", getDeviceListing().length);
-	foreach (iproute; getDeviceListing()) {
+	
+	logInfo("Discovering %d devices", devices.length);
+	foreach (iproute; devices) {
 		logInfo("Discovering %s", iproute.gateway.toAddressString());
+		logInfo("Destination %s", iproute.destination.toAddressString());
+		
 		// interrupt the other when one completes a successful port redirect
 		auto mtx = new InterruptibleTaskMutex();
 		Task upnp_task;

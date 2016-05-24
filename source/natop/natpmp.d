@@ -47,7 +47,7 @@ public:
 				has_error = true;
 				sleep(100.msecs);
 			}
-			enforce(++retries < 100);
+			enforce(++retries < 2);
 		} while (has_error);
 		m_udp.connect(iproute.gateway.toAddressString(), 5351);
 	}
@@ -61,7 +61,7 @@ public:
 	void discover() {
 		int retries;
 		// send a request and watch for error
-		while (++retries < 10) {
+		while (++retries < 2) {
 			ushort trial_port = cast(ushort) uniform(10000,63000);
 			ubyte[12] buf = buildRequest(trial_port, true);
 			m_udp.send(buf.ptr[0 .. 12]);
