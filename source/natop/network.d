@@ -129,12 +129,18 @@ version(linux) {
 					rt_info.gateway.sockAddrInet4.sin_addr.s_addr = ((*cast(uint*)RTA_DATA(rt_attr)));
 					logInfo("Got gateway: %s", rt_info.gateway.toAddressString());
 					break;
-				case RTA_DST:
+				/*case RTA_DST:
 					rt_info.destination.family = AF_INET;
 					rt_info.destination.sockAddrInet4.sin_addr.s_addr = ((*cast(uint*)RTA_DATA(rt_attr)));
 					logInfo("Got destination: %s", rt_info.destination.toAddressString());
 					break;
+				*/case RTA_PREFSRC:
+					rt_info.destination.family = AF_INET;
+                                        rt_info.destination.sockAddrInet4.sin_addr.s_addr = ((*cast(uint*)RTA_DATA(rt_attr)));
+                                        logInfo("Got prefsrc: %s", rt_info.destination.toAddressString());
+					break;
 				default:
+					logInfo("Got other type: %d", rt_attr.rta_type);
 					break;
 			}
 		}
