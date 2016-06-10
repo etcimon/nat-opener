@@ -70,6 +70,7 @@ void close(ushort port, bool is_tcp) {
 		foreach (i, mapping; mappings) {
 			if (mapping.external_port == port && mapping.is_tcp == is_tcp)
 			{
+				if (router_id !in g_routers) continue;
 				try {
 					static if (LOG) logInfo("Deleting mapping in close for port %d", port);
 					g_routers[router_id].deleteMapping(mapping.external_port, mapping.is_tcp);

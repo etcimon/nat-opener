@@ -5,7 +5,7 @@ import vibe.core.net;
 import vibe.core.log;
 
 import std.exception;
-import std.string : fromStringz;
+import std.string : fromStringz, format;
 import std.conv : to;
 import std.array : Appender;
 import core.stdc.stdlib : malloc, free;
@@ -36,6 +36,7 @@ bool validate(IPRoute rt_info) {
 		return false;
 	auto dest = rt_info.destination.toAddressString();
 	auto gateway = rt_info.gateway.toAddressString();
+	if (gateway == "0.0.0.0") return false;
 	foreach (ip; ["127.0.0.1"])
 		if (dest == ip || gateway == ip)
 			return false;
