@@ -21,7 +21,7 @@ import vibe.utils.memory;
 import vibe.http.client;
 import vibe.stream.memory;
 
-import kxml.xml;
+import vibe.data.xml;
 
 private string g_userAgent = "NAT-Opener/1.0.0";
 

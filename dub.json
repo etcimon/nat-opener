@@ -5,17 +5,16 @@
 	"authors": ["Etienne"],
 	"license": "MIT",
 	"dependencies": {
-		"vibe-d": { "version": "1.0.0" },
-		"memutils": { "version": "~>0.4.5" },
-		"kxml": { "version": "~>1.0.0" }
+		"vibe-0": { "version": "~>1.0.1" },
+		"memutils": { "version": "~>0.4.5" }
 	},
-	"targetType": "executable",
+	"targetType": "staticLibrary",
 	"configurations": [
 		{
 			"name": "win64",
 			"platforms": ["windows"],
 			"dependencies": {
-				"windows-headers": { "version": "1.0.1" }
+				"windows-headers": { "version": "~>1.0.1" }
 			}
 		},
 		{
@@ -25,7 +24,7 @@
 		{
 			"name": "32mscoff",
 			"dependencies": {
-				"windows-headers": { "version": "1.0.1"}
+				"windows-headers": { "version": "~>1.0.1"}
 			},
 			"dflags-windows-x86": ["-m32mscoff"],
 			

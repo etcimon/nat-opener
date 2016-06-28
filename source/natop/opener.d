@@ -13,6 +13,7 @@ import std.string : format;
 import std.stdio: writeln;
 import std.algorithm : remove;
 import std.array : array;
+import std.conv : to;
 // returns false on error
 private Router[string] g_routers;
 private Mapping[][string] g_registeredMappings;
@@ -25,7 +26,7 @@ struct Mapping {
 }
 
 // ports must be closed before application exit
-void open(ushort port, bool is_tcp) {
+void open(ushort port, bool is_tcp = true) {
 	foreach (mapping; g_mappings)
 		if (mapping.external_port == port && mapping.is_tcp == is_tcp)
 			throw new NATOPException(format("Mapping already created: %d, %s", port, is_tcp?"TCP":"UDP"));
@@ -46,7 +47,7 @@ void open(ushort port, bool is_tcp) {
 	g_mappings ~= Mapping(port, is_tcp);
 }
 
-void close(ushort port, bool is_tcp) {
+void close(ushort port, bool is_tcp = true) {
 	// foreach device, delete mapping
 
 	size_t to_delete;
@@ -186,11 +187,11 @@ shared static ~this() {
 }
 
 shared static this() {
-	setTimer(10.seconds, { discover(); }, true);
+	//setTimer(10.seconds, { discover(); }, true);
 }
-
+/*
 void main() {
-	setLogLevel(LogLevel.trace);
+	// setLogLevel(LogLevel.trace);
 	// static if (LOG) logInfo("Found devices: %s", getDeviceListing().to!string);
 
 	open(8081, true);
@@ -208,3 +209,4 @@ void main() {
 
 	close(8081, true);
 }
+*/
